@@ -25,10 +25,10 @@ class SharedRMSprop(optim.Optimizer):
             for p in group['params']:
                 state = self.state[p]
                 state['step'] = torch.zeros(1)
-                state['grad_avg'] = p.data.new().resize_as_(p.data).zero_()
-                state['square_avg'] = p.data.new().resize_as_(p.data).zero_()
-                state['momentum_buffer'] = p.data.new(
-                ).resize_as_(p.data).zero_()
+                state['grad_avg'] = p.detach().new().resize_as_(p.detach()).zero_()
+                state['square_avg'] = p.detach().new().resize_as_(p.detach()).zero_()
+                state['momentum_buffer'] = p.detach().new(
+                ).resize_as_(p.detach()).zero_()
 
     def share_memory(self):
         for group in self.param_groups:
@@ -53,7 +53,7 @@ class SharedRMSprop(optim.Optimizer):
             for p in group['params']:
                 if p.grad is None:
                     continue
-                grad = p.grad.data
+                grad = p.grad.detach()
                 if grad.is_sparse:
                     raise RuntimeError(
                         'RMSprop does not support sparse gradients')
@@ -65,7 +65,7 @@ class SharedRMSprop(optim.Optimizer):
                 state['step'] += 1
 
                 if group['weight_decay'] != 0:
-                    grad = grad.add(group['weight_decay'], p.data)
+                    grad = grad.add(group['weight_decay'], p.detach())
 
                 square_avg.mul_(alpha).addcmul_(1 - alpha, grad, grad)
 
@@ -80,9 +80,9 @@ class SharedRMSprop(optim.Optimizer):
                 if group['momentum'] > 0:
                     buf = state['momentum_buffer']
                     buf.mul_(group['momentum']).addcdiv_(grad, avg)
-                    p.data.add_(-group['lr'], buf)
+                    p.detach().add_(-group['lr'], buf)
                 else:
-                    p.data.addcdiv_(-group['lr'], grad, avg)
+                    p.detach().addcdiv_(-group['lr'], grad, avg)
 
         return loss
 
@@ -105,10 +105,10 @@ class SharedAdam(optim.Optimizer):
             for p in group['params']:
                 state = self.state[p]
                 state['step'] = torch.zeros(1)
-                state['exp_avg'] = p.data.new().resize_as_(p.data).zero_()
-                state['exp_avg_sq'] = p.data.new().resize_as_(p.data).zero_()
-                state['max_exp_avg_sq'] = p.data.new(
-                ).resize_as_(p.data).zero_()
+                state['exp_avg'] = p.detach().new().resize_as_(p.detach()).zero_()
+                state['exp_avg_sq'] = p.detach().new().resize_as_(p.detach()).zero_()
+                state['max_exp_avg_sq'] = p.detach().new(
+                ).resize_as_(p.detach()).zero_()
 
     def share_memory(self):
         for group in self.param_groups:
@@ -133,7 +133,7 @@ class SharedAdam(optim.Optimizer):
             for p in group['params']:
                 if p.grad is None:
                     continue
-                grad = p.grad.data
+                grad = p.grad.detach()
                 if grad.is_sparse:
                     raise RuntimeError(
                         'Adam does not support sparse gradients, please consider SparseAdam instead')
@@ -149,7 +149,7 @@ class SharedAdam(optim.Optimizer):
                 state['step'] += 1
 
                 if group['weight_decay'] != 0:
-                    grad = grad.add(group['weight_decay'], p.data)
+                    grad = grad.add(group['weight_decay'], p.detach())
 
                 # Decay the first and second moment running average coefficient
                 exp_avg.mul_(beta1).add_(1 - beta1, grad)
@@ -169,6 +169,6 @@ class SharedAdam(optim.Optimizer):
                 step_size = group['lr'] * \
                     math.sqrt(bias_correction2) / bias_correction1
 
-                p.data.addcdiv_(-step_size, exp_avg, denom)
+                p.detach().addcdiv_(-step_size, exp_avg, denom)
 
         return loss
